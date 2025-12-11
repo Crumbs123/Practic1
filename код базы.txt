@@ -1,0 +1,188 @@
+DROP DATABASE IF EXISTS school_management1;
+
+-- Создаем базу данных заново
+CREATE DATABASE school_management;
+USE school_management;
+
+-- 1. Таблица пользователей (сначала создаем ее, так как другие таблицы ссылаются на нее)
+CREATE TABLE Пользователи (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    логин VARCHAR(50) UNIQUE NOT NULL,
+    пароль VARCHAR(255) NOT NULL,
+    роль ENUM('Администратор', 'Учитель', 'Ученик') NOT NULL DEFAULT 'Ученик',
+    блокирован BOOLEAN DEFAULT FALSE,
+    попытки_входа INT DEFAULT 0,
+    создан DATETIME DEFAULT CURRENT_TIMESTAMP,
+    email VARCHAR(100),
+    полное_имя VARCHAR(100) NOT NULL,
+    класс_id INT NULL,
+    телефон VARCHAR(20)
+);
+
+-- 2. Таблица классов
+CREATE TABLE Классы (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    название VARCHAR(20) NOT NULL,
+    год_обучения INT,
+    классный_руководитель_id INT,
+    FOREIGN KEY (классный_руководитель_id) REFERENCES Пользователи(id) ON DELETE SET NULL
+);
+
+-- 3. Обновляем внешний ключ для Пользователи
+ALTER TABLE Пользователи 
+ADD FOREIGN KEY (класс_id) REFERENCES Классы(id) ON DELETE SET NULL;
+
+-- 4. Таблица предметов
+CREATE TABLE Предметы (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    название VARCHAR(100) NOT NULL,
+    описание TEXT,
+    учитель_id INT,
+    FOREIGN KEY (учитель_id) REFERENCES Пользователи(id) ON DELETE SET NULL
+);
+
+-- 5. Таблица расписания
+CREATE TABLE Расписание (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    класс_id INT NOT NULL,
+    предмет_id INT NOT NULL,
+    учитель_id INT NOT NULL,
+    день_недели ENUM('Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота') NOT NULL,
+    время_начала TIME NOT NULL,
+    время_окончания TIME NOT NULL,
+    кабинет VARCHAR(10),
+    FOREIGN KEY (класс_id) REFERENCES Классы(id) ON DELETE CASCADE,
+    FOREIGN KEY (предмет_id) REFERENCES Предметы(id) ON DELETE CASCADE,
+    FOREIGN KEY (учитель_id) REFERENCES Пользователи(id) ON DELETE CASCADE
+);
+
+-- 6. Таблица оценок
+CREATE TABLE Оценки (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    ученик_id INT NOT NULL,
+    предмет_id INT NOT NULL,
+    оценка INT CHECK (оценка BETWEEN 1 AND 5),
+    дата DATE NOT NULL,
+    тип_оценки ENUM('Контрольная', 'Самостоятельная', 'Домашняя работа', 'Устный ответ', 'Тест') DEFAULT 'Устный ответ',
+    комментарий TEXT,
+    учитель_id INT NOT NULL,
+    создано DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (ученик_id) REFERENCES Пользователи(id) ON DELETE CASCADE,
+    FOREIGN KEY (предмет_id) REFERENCES Предметы(id) ON DELETE CASCADE,
+    FOREIGN KEY (учитель_id) REFERENCES Пользователи(id) ON DELETE CASCADE
+);
+
+-- 7. Таблица домашних заданий
+CREATE TABLE Домашние_задания (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    предмет_id INT NOT NULL,
+    класс_id INT NOT NULL,
+    учитель_id INT NOT NULL,
+    задание TEXT NOT NULL,
+    дата_выдачи DATE DEFAULT (CURRENT_DATE),
+    срок_сдачи DATE NOT NULL,
+    FOREIGN KEY (предмет_id) REFERENCES Предметы(id) ON DELETE CASCADE,
+    FOREIGN KEY (класс_id) REFERENCES Классы(id) ON DELETE CASCADE,
+    FOREIGN KEY (учитель_id) REFERENCES Пользователи(id) ON DELETE CASCADE
+);
+-- 1. Сначала добавляем пользователей (админов и учителей)
+INSERT INTO Пользователи (логин, пароль, роль, полное_имя, email) VALUES
+-- admin / admin123
+('admin', '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', 'Администратор', 'Иванов Иван Иванович', 'admin@school.ru'),
+
+-- teacher1 / teacher123
+('teacher1', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'Учитель', 'Петрова Мария Сергеевна', 'petrova@school.ru'),
+
+-- teacher2 / teacher123 (тот же пароль)
+('teacher2', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'Учитель', 'Сидоров Петр Васильевич', 'sidorov@school.ru'),
+
+-- teacher3 / teacher123
+('teacher3', 'ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f', 'Учитель', 'Кузнецова Ольга Петровна', 'kuznetsova@school.ru');
+
+-- 2. Добавляем классы
+INSERT INTO Классы (название, год_обучения, классный_руководитель_id) VALUES
+('10А', 10, 2),  -- классный руководитель teacher1
+('9Б', 9, 3),    -- классный руководитель teacher2
+('11В', 11, 4);  -- классный руководитель teacher3
+
+-- 3. Добавляем учеников (после создания классов)
+INSERT INTO Пользователи (логин, пароль, роль, полное_имя, email, класс_id) VALUES
+-- student1 / student123
+('student1', '3b081e5c2b0c65d8b188e8d9d2c6fceb7cc4e0c5d8d8e8f9a0b1c2d3e4f5a6b7', 'Ученик', 'Козлов Алексей', 'kozlov@school.ru', 1),
+
+-- student2 / student123
+('student2', '3b081e5c2b0c65d8b188e8d9d2c6fceb7cc4e0c5d8d8e8f9a0b1c2d3e4f5a6b7', 'Ученик', 'Николаева Анна', 'nikolaeva@school.ru', 2),
+
+-- student3 / student123
+('student3', '3b081e5c2b0c65d8b188e8d9d2c6fceb7cc4e0c5d8d8e8f9a0b1c2d3e4f5a6b7', 'Ученик', 'Смирнов Дмитрий', 'smirnov@school.ru', 3);
+
+-- 4. Добавляем предметы
+INSERT INTO Предметы (название, описание, учитель_id) VALUES
+('Математика', 'Алгебра и геометрия', 2),
+('Русский язык', 'Русский язык и литература', 3),
+('Физика', 'Физика и астрономия', 4),
+('Информатика', 'Программирование и информационные технологии', 2),
+('История', 'История России и всемирная история', 3),
+('Английский язык', 'Иностранный язык', 4);
+
+-- 5. Добавляем расписание для 10А класса
+INSERT INTO Расписание (класс_id, предмет_id, учитель_id, день_недели, время_начала, время_окончания, кабинет) VALUES
+(1, 1, 2, 'Понедельник', '09:00', '09:45', '201'),   -- Математика
+(1, 2, 3, 'Понедельник', '10:00', '10:45', '305'),   -- Русский язык
+(1, 3, 4, 'Вторник', '09:00', '09:45', '101'),       -- Физика
+(1, 4, 2, 'Среда', '11:00', '11:45', '405'),         -- Информатика
+(1, 5, 3, 'Четверг', '10:00', '10:45', '202'),       -- История
+(1, 6, 4, 'Пятница', '09:00', '09:45', '303');       -- Английский
+
+-- 6. Добавляем оценки
+INSERT INTO Оценки (ученик_id, предмет_id, оценка, дата, тип_оценки, комментарий, учитель_id) VALUES
+(5, 1, 5, '2024-01-10', 'Контрольная', 'Отличная работа', 2),
+(5, 2, 4, '2024-01-11', 'Устный ответ', 'Хорошо подготовился', 3),
+(6, 1, 3, '2024-01-10', 'Контрольная', 'Есть ошибки в вычислениях', 2),
+(6, 3, 5, '2024-01-12', 'Тест', 'Превосходный результат', 4),
+(7, 4, 4, '2024-01-13', 'Самостоятельная', 'Хорошо, но можно лучше', 2);
+
+-- 7. Добавляем домашние задания
+INSERT INTO Домашние_задания (предмет_id, класс_id, учитель_id, задание, дата_выдачи, срок_сдачи) VALUES
+(1, 1, 2, 'Решить задачи №1-10 на странице 45', '2024-01-10', '2024-01-17'),
+(2, 1, 3, 'Написать сочинение на тему "Мое любимое время года"', '2024-01-11', '2024-01-18'),
+(4, 1, 2, 'Создать программу на Python', '2024-01-12', '2024-01-19'),
+(3, 2, 4, 'Подготовить доклад по физике', '2024-01-13', '2024-01-20');
+
+-- ПРОВЕРКА ДАННЫХ:
+
+SELECT '=== ПОЛЬЗОВАТЕЛИ ===' as info;
+SELECT id, логин, роль, полное_имя, класс_id FROM Пользователи;
+
+SELECT '=== КЛАССЫ ===' as info;
+SELECT id, название, год_обучения, классный_руководитель_id FROM Классы;
+
+SELECT '=== ПРЕДМЕТЫ ===' as info;
+SELECT id, название, описание, учитель_id FROM Предметы;
+
+SELECT '=== РАСПИСАНИЕ (10А) ===' as info;
+SELECT r.id, k.название as класс, p.название as предмет, u.полное_имя as учитель,
+       r.день_недели, r.время_начала, r.время_окончания, r.кабинет
+FROM Расписание r
+JOIN Классы k ON r.класс_id = k.id
+JOIN Предметы p ON r.предмет_id = p.id
+JOIN Пользователи u ON r.учитель_id = u.id
+WHERE k.название = '10А'
+ORDER BY FIELD(r.день_недели, 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'),
+         r.время_начала;
+
+SELECT '=== ОЦЕНКИ ===' as info;
+SELECT o.id, s.полное_имя as ученик, p.название as предмет, o.оценка, o.дата, 
+       o.тип_оценки, t.полное_имя as учитель
+FROM Оценки o
+JOIN Пользователи s ON o.ученик_id = s.id
+JOIN Предметы p ON o.предмет_id = p.id
+JOIN Пользователи t ON o.учитель_id = t.id;
+
+SELECT '=== ДОМАШНИЕ ЗАДАНИЯ ===' as info;
+SELECT h.id, p.название as предмет, k.название as класс, u.полное_имя as учитель,
+       h.задание, h.дата_выдачи, h.срок_сдачи
+FROM Домашние_задания h
+JOIN Предметы p ON h.предмет_id = p.id
+JOIN Классы k ON h.класс_id = k.id
+JOIN Пользователи u ON h.учитель_id = u.id;
